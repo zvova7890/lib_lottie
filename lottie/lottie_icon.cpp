@@ -273,7 +273,7 @@ void Icon::Inner::prepareFromAsync(
 	const auto size = sizeOverride.isEmpty()
 		? style::ConvertScale(QSize{ int(width), int(height) })
 		: sizeOverride;
-	auto image = CreateFrameStorage(size * style::DevicePixelRatio());
+	auto image = CreateFrameStorage(style::DevicePixels(size));
 	image.fill(Qt::transparent);
 	auto surface = rlottie::Surface(
 		reinterpret_cast<uint32_t*>(image.bits()),
@@ -345,7 +345,7 @@ void Icon::Inner::moveToFrame(
 	if (!updatedDesiredSize.isEmpty()) {
 		_desiredSize = updatedDesiredSize;
 	}
-	const auto desiredImageSize = _desiredSize * style::DevicePixelRatio();
+	const auto desiredImageSize = style::DevicePixels(_desiredSize);
 	if (!_rlottie
 		|| state == PreloadState::Preloading
 		|| (shown == frame
@@ -450,7 +450,7 @@ Icon::ResizedFrame Icon::frame(
 		Fn<void()> updateWithPerfect) const {
 	preloadNextFrame(desiredSize);
 
-	const auto desired = size() * style::DevicePixelRatio();
+	const auto desired = style::DevicePixels(size());
 	auto &frame = _inner->frame();
 	if (frame.renderedImage.isNull()) {
 		return { frame.renderedImage };
@@ -476,7 +476,10 @@ Icon::ResizedFrame Icon::frame(
 		&& color == frame.colorizedColor) {
 		return { frame.colorizedImage };
 	}
-	if (frame.colorizedImage.isNull()) {
+	if (frame.colorizedImage.isNull()
+		|| frame.colorizedImage.size() != desired
+		|| frame.colorizedImage.devicePixelRatio()
+			!= frame.renderedImage.devicePixelRatio()) {
 		frame.colorizedImage = CreateFrameStorage(desired);
 	}
 	frame.colorizedColor = color;
@@ -537,7 +540,10 @@ void Icon::paint(
 		p.drawImage(rect, frame.colorizedImage);
 		p.setOpacity(o);
 	} else {
-		if (frame.colorizedImage.isNull()) {
+		if (frame.colorizedImage.isNull()
+			|| frame.colorizedImage.size() != frame.renderedImage.size()
+			|| frame.colorizedImage.devicePixelRatio()
+				!= frame.renderedImage.devicePixelRatio()) {
 			frame.colorizedImage = CreateFrameStorage(
 				frame.renderedImage.size());
 		}
